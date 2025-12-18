@@ -9,6 +9,8 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/BomScoob12/homelab-file-manager/internal/files"
 )
 
 func main() {
@@ -17,6 +19,7 @@ func main() {
 	// mux = multiplexter (router)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", RootHandler)
+	mux.Handle("/files", files.NewHandler())
 
 	server := &http.Server{
 		Addr:    port,
