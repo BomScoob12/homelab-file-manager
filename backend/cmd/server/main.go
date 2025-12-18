@@ -19,7 +19,7 @@ func main() {
 	// mux = multiplexter (router)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", RootHandler)
-	mux.Handle("/files", files.NewHandler())
+	mux.Handle("/files/", files.NewHandler())
 
 	server := &http.Server{
 		Addr:    port,
