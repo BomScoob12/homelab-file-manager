@@ -16,6 +16,7 @@ func NewHandler() http.Handler {
 	}
 
 	mux.HandleFunc("GET /", handler.getFileList)
+	mux.HandleFunc("GET /details/", handler.getFileDetails)
 	mux.HandleFunc("DELETE /", handler.deleteFile)
 
 	return mux
@@ -23,10 +24,30 @@ func NewHandler() http.Handler {
 
 func (h *FileHandler) getFileList(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("file handler get file list")
-	h.svc.List()
+	dirList, err := h.svc.List()
+	if err != nil {
+		fmt.Fprint(w, "file read error")
+	}
+
+	fmt.Fprint(w, dirList)
+}
+
+func (h *FileHandler) getFileDetails(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("file handler get file details")
+	h.svc.ReadFile()
 }
 
 func (h *FileHandler) deleteFile(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("file handler delete file")
-	h.svc.DeleteFile()
+
+	query := r.URL.Query()
+	targetFile := query.Get("targetFile")
+
+	if targetFile == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintln(w, "target file not provineded")
+		return
+	}
+
+	h.svc.DeleteFile(targetFile)
 }

@@ -1,17 +1,22 @@
 package files
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+
+	"github.com/BomScoob12/homelab-file-manager/internal/fs"
+)
 
 type FileService struct{}
 
-func (s *FileService) List() {
-	fmt.Println("LIST of file: [1,2,3]")
+func (s *FileService) List() ([]os.DirEntry, error) {
+	return fs.ListFile("/")
 }
 
 func (s *FileService) ReadFile() {
 	fmt.Println("READ file: [1]")
 }
 
-func (s *FileService) DeleteFile() {
-	fmt.Println("DELETE file: [1,2,3]")
+func (s *FileService) DeleteFile(target string) {
+	fmt.Printf("DELETE file: %s", target)
 }

@@ -10,20 +10,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/BomScoob12/homelab-file-manager/internal/files"
+	"github.com/BomScoob12/homelab-file-manager/internal/routes"
 )
 
 func main() {
 
 	port := ":8080"
-	// mux = multiplexter (router)
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", RootHandler)
-	mux.Handle("/files/", files.NewHandler())
-
 	server := &http.Server{
 		Addr:    port,
-		Handler: mux,
+		Handler: routes.NewRouter(),
 	}
 
 	go func() {
@@ -33,6 +28,10 @@ func main() {
 		}
 	}()
 
+	handleStopProcess(server)
+}
+
+func handleStopProcess(server *http.Server) {
 	// stop signal
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
@@ -49,8 +48,4 @@ func main() {
 	} else {
 		log.Println("server stopped successfully")
 	}
-}
-
-func RootHandler(w http.ResponseWriter, r *http.Request) {
-	fmt.Println(r)
 }
