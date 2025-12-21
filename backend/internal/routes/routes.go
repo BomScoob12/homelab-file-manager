@@ -10,7 +10,7 @@ func NewRouter() http.Handler {
 	// mux = multiplexter (router)
 	mux := http.NewServeMux()
 
-	mux.Handle("/files/", http.StripPrefix("/files", files.NewHandler()))
+	mux.Handle("/file/", http.StripPrefix("/file", files.NewHandler()))
 
 	return mux
 }
