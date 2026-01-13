@@ -1,74 +1,60 @@
 @echo off
 setlocal enabledelayedexpansion
 
-echo 🚀 Starting File Manager Development Environment
-echo ================================================
+echo 🚀 Starting File Manager with Docker
+echo ====================================
 
-REM Check if Go is installed
-where go >nul 2>nul
+REM Check if Docker is installed
+where docker >nul 2>nul
 if %errorlevel% neq 0 (
-    echo ❌ Go is not installed. Please install Go 1.21 or later.
+    echo ❌ Docker is not installed. Please install Docker first.
     pause
     exit /b 1
 )
 
-REM Check if Node.js is installed
-where node >nul 2>nul
+REM Check if Docker Compose is installed
+where docker-compose >nul 2>nul
 if %errorlevel% neq 0 (
-    echo ❌ Node.js is not installed. Please install Node.js 16 or later.
+    echo ❌ Docker Compose is not installed. Please install Docker Compose first.
     pause
     exit /b 1
 )
 
-REM Check if npm is installed
-where npm >nul 2>nul
-if %errorlevel% neq 0 (
-    echo ❌ npm is not installed. Please install npm.
-    pause
-    exit /b 1
+echo ✅ Docker and Docker Compose are installed
+
+REM Create data directory if it doesn't exist
+if not exist "data" (
+    echo 📁 Creating data directory...
+    mkdir data
+    mkdir data\documents
+    mkdir data\images
+    
+    echo Sample text file content > data\sample.txt
+    echo # Sample Markdown File > data\README.md
+    echo This is a **markdown** file with some content. >> data\README.md
+    echo {"name": "sample", "version": "1.0", "description": "Sample JSON file"} > data\config.json
+    echo Sample log entry > data\app.log
+    echo Document content > data\documents\document.txt
+    
+    echo package main > data\main.go
+    echo. >> data\main.go
+    echo import "fmt" >> data\main.go
+    echo. >> data\main.go
+    echo func main() { >> data\main.go
+    echo     fmt.Println("Hello, World!") >> data\main.go
+    echo } >> data\main.go
+    
+    echo ✅ Sample data created in ./data
 )
 
-echo ✅ All prerequisites are installed
-
-REM Setup test environment
-echo Setting up test environment...
-cd backend
-call make setup-test
-cd ..
-
-REM Install frontend dependencies if needed
-if not exist "frontend\node_modules" (
-    echo Installing frontend dependencies...
-    cd frontend
-    call npm install
-    cd ..
-)
-
-echo Starting backend server...
-cd backend
-start "Backend Server" cmd /k "go run cmd/app/main.go"
-cd ..
-
-REM Wait for backend to start
-timeout /t 3 /nobreak >nul
-
-echo Starting frontend development server...
-cd frontend
-start "Frontend Server" cmd /k "npm run dev"
-cd ..
+echo 🔧 Starting File Manager services...
+docker-compose up --build
 
 echo.
-echo 🎉 Development environment is ready!
+echo File Manager is running!
 echo 📱 Frontend: http://localhost:3000
 echo 🔧 Backend API: http://localhost:8080
-echo 📁 Test files: /tmp/WorkDir
+echo 📁 Data directory: ./data
 echo.
-echo Press any key to open the frontend in your browser...
-pause >nul
-
-start http://localhost:3000
-
-echo.
-echo Both servers are running in separate windows.
-echo Close those windows to stop the servers.
+echo Press Ctrl+C to stop the services.
 pause

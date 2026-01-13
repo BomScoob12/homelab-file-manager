@@ -30,10 +30,10 @@ func NewHandler() http.Handler {
 	}
 
 	// File management endpoints
-	mux.HandleFunc("GET /list", handler.handleListFiles)
-	mux.HandleFunc("GET /open", handler.handleOpenFile)
-	mux.HandleFunc("GET /details", handler.handleGetFileDetails)
-	mux.HandleFunc("DELETE /delete", handler.handleDeleteFile)
+	mux.HandleFunc("/list", handler.handleListFiles)
+	mux.HandleFunc("/open", handler.handleOpenFile)
+	mux.HandleFunc("/details", handler.handleGetFileDetails)
+	mux.HandleFunc("/delete", handler.handleDeleteFile)
 
 	// Add middleware for logging and CORS
 	return handler.withMiddleware(mux)
@@ -41,6 +41,12 @@ func NewHandler() http.Handler {
 
 // handleListFiles handles GET /file/list - Lists files and directories
 func (h *FileHandler) handleListFiles(w http.ResponseWriter, r *http.Request) {
+	// Check HTTP method
+	if r.Method != http.MethodGet {
+		h.sendErrorResponse(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	// Extract and validate path parameter
 	path := r.URL.Query().Get("path")
 	if path == "" {
@@ -49,6 +55,10 @@ func (h *FileHandler) handleListFiles(w http.ResponseWriter, r *http.Request) {
 
 	// Clean and validate path
 	cleanPath := filepath.Clean(path)
+
+	// Debug logging
+	log.Printf("Received path: %q, cleaned path: %q", path, cleanPath)
+
 	if !isValidPath(cleanPath) {
 		h.sendErrorResponse(w, "Invalid path provided", http.StatusBadRequest)
 		return
@@ -68,6 +78,12 @@ func (h *FileHandler) handleListFiles(w http.ResponseWriter, r *http.Request) {
 
 // handleOpenFile handles GET /file/open - Opens and reads file content
 func (h *FileHandler) handleOpenFile(w http.ResponseWriter, r *http.Request) {
+	// Check HTTP method
+	if r.Method != http.MethodGet {
+		h.sendErrorResponse(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	// Extract and validate file path
 	filePath := r.URL.Query().Get("path")
 	if filePath == "" {
@@ -96,6 +112,12 @@ func (h *FileHandler) handleOpenFile(w http.ResponseWriter, r *http.Request) {
 
 // handleGetFileDetails handles GET /file/details - Gets detailed file information
 func (h *FileHandler) handleGetFileDetails(w http.ResponseWriter, r *http.Request) {
+	// Check HTTP method
+	if r.Method != http.MethodGet {
+		h.sendErrorResponse(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	// Extract and validate file path
 	filePath := r.URL.Query().Get("path")
 	if filePath == "" {
@@ -124,6 +146,12 @@ func (h *FileHandler) handleGetFileDetails(w http.ResponseWriter, r *http.Reques
 
 // handleDeleteFile handles DELETE /file/delete - Deletes a file
 func (h *FileHandler) handleDeleteFile(w http.ResponseWriter, r *http.Request) {
+	// Check HTTP method
+	if r.Method != http.MethodDelete {
+		h.sendErrorResponse(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	// Extract and validate file path
 	filePath := r.URL.Query().Get("path")
 	if filePath == "" {
@@ -154,13 +182,14 @@ func (h *FileHandler) handleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	}
 	h.sendJSONResponse(w, response, http.StatusOK)
 }
+
 // Helper methods for the handler
 
 // sendJSONResponse sends a JSON response with proper headers
 func (h *FileHandler) sendJSONResponse(w http.ResponseWriter, data interface{}, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	
+
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		log.Printf("Error encoding JSON response: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -194,17 +223,22 @@ func (h *FileHandler) handleServiceError(w http.ResponseWriter, err error) {
 func isValidPath(path string) bool {
 	// Check for empty path
 	if path == "" {
-		return false
+		return true // Empty path is valid (represents root)
 	}
-	
+
+	// Handle root paths
+	if path == "/" || path == "." {
+		return true
+	}
+
 	// Check for dangerous patterns
-	dangerousPatterns := []string{"../", "..\\", "..", "~"}
+	dangerousPatterns := []string{"../", "..", "~"}
 	for _, pattern := range dangerousPatterns {
 		if strings.Contains(path, pattern) {
 			return false
 		}
 	}
-	
+
 	return true
 }
 
@@ -215,20 +249,20 @@ func (h *FileHandler) withMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		
+
 		// Handle preflight requests
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		// Log request
 		start := time.Now()
 		log.Printf("Started %s %s", r.Method, r.URL.Path)
-		
+
 		// Call next handler
 		next.ServeHTTP(w, r)
-		
+
 		// Log completion
 		log.Printf("Completed %s %s in %v", r.Method, r.URL.Path, time.Since(start))
 	})

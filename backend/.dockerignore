@@ -1,0 +1,35 @@
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+API_DOCUMENTATION.md
+
+# Development files
+.env.example
+Makefile
+test_api.go
+air.toml
+
+# Build artifacts
+file-manager
+*.exe
+
+# Test and coverage files
+*.test
+coverage.out
+coverage.html
+
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

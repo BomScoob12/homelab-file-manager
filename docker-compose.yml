@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: file-manager-backend
+    environment:
+      - FILE_MANAGER_BASE_PATH=/data
+      - PORT=8080
+      - HOST=0.0.0.0
+      - LOG_LEVEL=info
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    networks:
+      - file-manager-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: file-manager-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - file-manager-network
+    restart: unless-stopped
+
+networks:
+  file-manager-network:
+    driver: bridge

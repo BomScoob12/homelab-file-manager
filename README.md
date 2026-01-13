@@ -1,6 +1,6 @@
 # File Manager
 
-A full-stack file management system with a Go backend and Vue.js frontend.
+A full-stack file management system with a Go backend and Vue.js frontend, designed for Docker deployment.
 
 ## Project Structure
 
@@ -9,18 +9,16 @@ A full-stack file management system with a Go backend and Vue.js frontend.
 ├── backend/                 # Go API server
 │   ├── cmd/app/            # Application entry point
 │   ├── internal/           # Internal packages
-│   │   ├── files/          # File management logic
-│   │   ├── fs/             # File system utilities
-│   │   └── routes/         # HTTP routes
-│   ├── go.mod              # Go dependencies
-│   └── Makefile            # Build commands
+│   ├── Dockerfile          # Backend Docker image
+│   └── .env                # Environment configuration
 ├── frontend/               # Vue.js web application
 │   ├── src/                # Source code
-│   │   ├── components/     # Vue components
-│   │   └── services/       # API services
-│   ├── package.json        # Node.js dependencies
-│   └── vite.config.js      # Build configuration
-└── README.md               # This file
+│   └── Dockerfile          # Frontend Docker image
+├── docker-compose.yml      # Production Docker Compose
+├── docker-compose.dev.yml  # Development Docker Compose
+├── start.sh               # Unix startup script
+├── dev.bat                # Windows startup script
+└── data/                  # Mounted data directory
 ```
 
 ## Features
@@ -29,8 +27,8 @@ A full-stack file management system with a Go backend and Vue.js frontend.
 - 🚀 **Fast HTTP API** built with Go's net/http
 - 📁 **File Operations**: List, read, delete files and directories
 - 🔒 **Security**: Path validation and access control
-- 🐳 **Docker Ready**: Designed for containerized deployment
-- 📊 **Comprehensive Logging**: Request/response logging
+- 🐳 **Docker Native**: Designed for containerized deployment
+- 📊 **Health Checks**: Built-in health monitoring
 - ⚡ **High Performance**: Efficient file system operations
 
 ### Frontend (Vue.js)
@@ -41,13 +39,12 @@ A full-stack file management system with a Go backend and Vue.js frontend.
 - 🗑️ **File Management**: Delete files with confirmation
 - 🔄 **Real-time Updates**: Refresh file listings
 
-## Quick Start
+## Quick Start with Docker
 
 ### Prerequisites
-- **Go 1.21+** for backend
-- **Node.js 16+** for frontend
+- **Docker** and **Docker Compose**
 
-### Development Setup
+### Easy Setup
 
 1. **Clone the repository**:
    ```bash
@@ -55,21 +52,29 @@ A full-stack file management system with a Go backend and Vue.js frontend.
    cd file-manager
    ```
 
-2. **Start the backend** (Terminal 1):
+2. **Start with Docker Compose** (Recommended):
    ```bash
-   cd backend
-   make setup-test  # Create test files
-   make run         # Start Go server on :8080
+   # Unix/Linux/macOS
+   ./start.sh
+   
+   # Windows
+   dev.bat
+   
+   # Or manually
+   docker-compose up --build
    ```
 
-3. **Start the frontend** (Terminal 2):
-   ```bash
-   cd frontend
-   npm install      # Install dependencies
-   npm run dev      # Start Vite dev server on :3000
-   ```
+3. **Access the application**:
+   - **Frontend**: http://localhost:3000
+   - **Backend API**: http://localhost:8080
+   - **Data Directory**: `./data` (auto-created)
 
-4. **Open your browser** to `http://localhost:3000`
+### Development Mode
+
+For development with hot reload:
+```bash
+docker-compose -f docker-compose.dev.yml up --build
+```
 
 ## API Endpoints
 
@@ -82,11 +87,19 @@ A full-stack file management system with a Go backend and Vue.js frontend.
 
 ## Configuration
 
-### Backend Configuration
-- **Port**: 8080 (configurable via environment)
-- **Base Path**: `/WorkDir` (Docker mount point)
-- **File Size Limit**: 10MB for content reading
-- **CORS**: Enabled for frontend integration
+### Backend Configuration (.env file)
+Create a `.env` file in the `backend/` directory:
+
+```bash
+# Copy the example file
+cp backend/.env.example backend/.env
+```
+
+Available environment variables:
+- **FILE_MANAGER_BASE_PATH**: Base directory for file operations (default: `C:/temp/test-localfile-manager` on Windows)
+- **PORT**: Server port (default: 8080)
+- **HOST**: Server host (default: empty - all interfaces)
+- **LOG_LEVEL**: Logging level (default: info)
 
 ### Frontend Configuration
 - **Dev Server**: Port 3000
@@ -265,3 +278,144 @@ This project is licensed under the MIT License.
 - [ ] Bulk operations
 - [ ] File versioning
 - [ ] Integration with cloud storage
+##
+ Configuration
+
+### Environment Variables (.env)
+The backend uses environment variables for configuration:
+
+```bash
+# Base path for file operations (Docker mount point)
+FILE_MANAGER_BASE_PATH=/data
+
+# Server Configuration
+PORT=8080
+HOST=0.0.0.0
+
+# Development Settings
+LOG_LEVEL=info
+```
+
+### Docker Volumes
+- **Data Directory**: `./data` is mounted to `/data` in the container
+- **All file operations** happen within this mounted directory
+- **Persistent storage** across container restarts
+
+## API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/file/list?path=/` | List files and directories |
+| GET | `/file/details?path=/file.txt` | Get file metadata |
+| GET | `/file/open?path=/file.txt` | Read file content |
+| DELETE | `/file/delete?path=/file.txt` | Delete file or directory |
+
+## Docker Deployment
+
+### Production Deployment
+```bash
+# Build and start services
+docker-compose up -d --build
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+### Custom Data Directory
+```bash
+# Use custom data directory
+docker run -v /your/data/path:/data -p 3000:3000 file-manager
+```
+
+### Environment Customization
+Create a `.env` file in the project root:
+```bash
+# Custom configuration
+FILE_MANAGER_BASE_PATH=/data
+PORT=8080
+LOG_LEVEL=debug
+```
+
+## Development
+
+### Local Development (without Docker)
+```bash
+# Backend
+cd backend
+make setup-data  # Create sample data
+make run         # Start Go server
+
+# Frontend  
+cd frontend
+npm install
+npm run dev      # Start Vite dev server
+```
+
+### Docker Development
+```bash
+# Development mode with hot reload
+docker-compose -f docker-compose.dev.yml up --build
+```
+
+## File System Structure
+
+The application operates on a data directory mounted at `/data`:
+
+```
+/data/                      # Base directory (Docker mount)
+├── documents/              # Example directory
+│   ├── report.pdf         # Files
+│   └── notes.txt
+├── images/
+│   └── photo.jpg
+└── config.json
+```
+
+## Security Features
+
+- **Path Validation**: Prevents directory traversal attacks
+- **Base Directory Restriction**: All operations within `/data`
+- **Input Sanitization**: Clean and validate all inputs
+- **CORS Configuration**: Controlled cross-origin access
+- **Non-root User**: Containers run as non-root user
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Port already in use**:
+   ```bash
+   # Check what's using the port
+   docker ps
+   # Stop conflicting containers
+   docker-compose down
+   ```
+
+2. **Permission issues with data directory**:
+   ```bash
+   # Fix permissions
+   sudo chown -R $USER:$USER ./data
+   ```
+
+3. **Container build fails**:
+   ```bash
+   # Clean Docker cache
+   docker system prune -a
+   # Rebuild without cache
+   docker-compose build --no-cache
+   ```
+
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test with Docker
+5. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License.

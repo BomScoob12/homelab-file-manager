@@ -2,6 +2,7 @@ package files
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -17,13 +18,13 @@ type FileService struct {
 
 // NewFileService creates a new file service instance
 func NewFileService() *FileService {
-	basePath := "/WorkDir" // Default for Docker/Unix
-	
-	// For Windows development, use C:\tmp\WorkDir
-	if filepath.Separator == '\\' {
-		basePath = `C:\tmp\WorkDir`
+	// Get base path from environment variable, with fallback
+	basePath := os.Getenv("FILE_MANAGER_BASE_PATH")
+	if basePath == "" {
+		// Default to Docker mount point
+		basePath = "/data"
 	}
-	
+
 	return &FileService{
 		basePath: basePath,
 		fsUtils:  fs.NewFileSystemUtils(),
@@ -192,7 +193,7 @@ func (s *FileService) OpenFile(filePath string) (*FileContentResponse, error) {
 
 	mimeType := getMimeType(fullPath)
 	encoding := "utf-8"
-	
+
 	// Check if it's a binary file
 	if isBinaryMimeType(mimeType) {
 		encoding = "binary"
@@ -238,28 +239,43 @@ func (s *FileService) DeleteFile(targetPath string) error {
 
 // validateAndConstructPath validates the path and constructs the full system path
 func (s *FileService) validateAndConstructPath(path string) (string, error) {
+	// Handle empty path as root
 	if path == "" {
-		return "", fmt.Errorf("path cannot be empty")
+		return s.basePath, nil
+	}
+
+	// Handle root path
+	if path == "/" {
+		return s.basePath, nil
 	}
 
 	// Clean the path
 	cleanPath := filepath.Clean(path)
-	
+
+	// If cleanPath is ".", it means we're at root
+	if cleanPath == "." {
+		return s.basePath, nil
+	}
+
 	// Construct full path
 	fullPath := filepath.Join(s.basePath, cleanPath)
-	
+
+	// Clean both paths for comparison
+	cleanFullPath := filepath.Clean(fullPath)
+	cleanBasePath := filepath.Clean(s.basePath)
+
 	// Ensure the path doesn't escape the base directory
-	if !strings.HasPrefix(filepath.Clean(fullPath), s.basePath) {
+	if !strings.HasPrefix(cleanFullPath, cleanBasePath) {
 		return "", fmt.Errorf("invalid path: access denied - path escapes base directory")
 	}
 
-	return fullPath, nil
+	return cleanFullPath, nil
 }
 
 // getMimeType returns a MIME type based on file extension
 func getMimeType(filePath string) string {
 	ext := strings.ToLower(filepath.Ext(filePath))
-	
+
 	mimeTypes := map[string]string{
 		// Text files
 		".txt":  "text/plain",
@@ -269,7 +285,7 @@ func getMimeType(filePath string) string {
 		".conf": "text/plain",
 		".cfg":  "text/plain",
 		".ini":  "text/plain",
-		
+
 		// Code files
 		".go":   "text/x-go",
 		".js":   "application/javascript",
@@ -284,7 +300,7 @@ func getMimeType(filePath string) string {
 		".sh":   "application/x-sh",
 		".bat":  "application/x-bat",
 		".ps1":  "application/x-powershell",
-		
+
 		// Web files
 		".html": "text/html",
 		".htm":  "text/html",
@@ -292,14 +308,14 @@ func getMimeType(filePath string) string {
 		".scss": "text/x-scss",
 		".sass": "text/x-sass",
 		".less": "text/x-less",
-		
+
 		// Data files
 		".json": "application/json",
 		".xml":  "application/xml",
 		".yaml": "application/x-yaml",
 		".yml":  "application/x-yaml",
 		".toml": "application/toml",
-		
+
 		// Images
 		".png":  "image/png",
 		".jpg":  "image/jpeg",
@@ -309,7 +325,7 @@ func getMimeType(filePath string) string {
 		".svg":  "image/svg+xml",
 		".webp": "image/webp",
 		".ico":  "image/x-icon",
-		
+
 		// Documents
 		".pdf":  "application/pdf",
 		".doc":  "application/msword",
@@ -318,33 +334,33 @@ func getMimeType(filePath string) string {
 		".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 		".ppt":  "application/vnd.ms-powerpoint",
 		".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-		
+
 		// Archives
-		".zip":  "application/zip",
-		".tar":  "application/x-tar",
-		".gz":   "application/gzip",
-		".rar":  "application/x-rar-compressed",
-		".7z":   "application/x-7z-compressed",
-		
+		".zip": "application/zip",
+		".tar": "application/x-tar",
+		".gz":  "application/gzip",
+		".rar": "application/x-rar-compressed",
+		".7z":  "application/x-7z-compressed",
+
 		// Audio/Video
-		".mp3":  "audio/mpeg",
-		".wav":  "audio/wav",
-		".mp4":  "video/mp4",
-		".avi":  "video/x-msvideo",
-		".mov":  "video/quicktime",
-		
+		".mp3": "audio/mpeg",
+		".wav": "audio/wav",
+		".mp4": "video/mp4",
+		".avi": "video/x-msvideo",
+		".mov": "video/quicktime",
+
 		// Executables
-		".exe":  "application/x-msdownload",
-		".msi":  "application/x-msi",
-		".deb":  "application/x-debian-package",
-		".rpm":  "application/x-rpm",
-		".dmg":  "application/x-apple-diskimage",
+		".exe": "application/x-msdownload",
+		".msi": "application/x-msi",
+		".deb": "application/x-debian-package",
+		".rpm": "application/x-rpm",
+		".dmg": "application/x-apple-diskimage",
 	}
 
 	if mimeType, exists := mimeTypes[ext]; exists {
 		return mimeType
 	}
-	
+
 	return "application/octet-stream"
 }
 
@@ -359,12 +375,12 @@ func isBinaryMimeType(mimeType string) bool {
 		"application/x-yaml",
 		"application/toml",
 	}
-	
+
 	for _, textType := range textTypes {
 		if strings.HasPrefix(mimeType, textType) {
 			return false
 		}
 	}
-	
+
 	return true
 }

@@ -11,20 +11,43 @@ import (
 	"time"
 
 	"github.com/BomScoob12/homelab-file-manager/internal/routes"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load .env file
+	if err := godotenv.Load(); err != nil {
+		log.Printf("Warning: .env file not found or could not be loaded: %v", err)
+	}
 
-	port := ":8080"
+	// Get port from environment variable or use default
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	// Get host from environment variable
+	host := os.Getenv("HOST")
+
+	// Get base path for logging
+	basePath := os.Getenv("FILE_MANAGER_BASE_PATH")
+	if basePath == "" {
+		basePath = "default system path"
+	}
+
 	server := &http.Server{
-		Addr:    port,
+		Addr:    host + ":" + port,
 		Handler: routes.NewRouter(),
 	}
 
 	go func() {
-		fmt.Println("server running at port", port)
-		if err := server.ListenAndServe(); err != nil {
-			log.Fatalf("listen error %v", err)
+		fmt.Printf("🚀 File Manager Server starting...\n")
+		fmt.Printf("📡 Server running at http://localhost:%s\n", port)
+		fmt.Printf("📁 Base path: %s\n", basePath)
+		fmt.Printf("🔧 Press Ctrl+C to stop\n\n")
+
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server listen error: %v", err)
 		}
 	}()
 
@@ -37,15 +60,15 @@ func handleStopProcess(server *http.Server) {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	<-stop
-	log.Println("shutdown signal received")
+	log.Println("🛑 Shutdown signal received")
 
 	// get process time from bg process + timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("graceful shutdown failed: %v", err)
+		log.Printf("❌ Graceful shutdown failed: %v", err)
 	} else {
-		log.Println("server stopped successfully")
+		log.Println("✅ Server stopped successfully")
 	}
 }
