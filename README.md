@@ -14,7 +14,7 @@ A simple web-based file manager built with Go backend and Vue.js frontend.
 
 ```bash
 # Clone and run
-git clone <your-repo>
+git clone https://github.com/BomScoob12/homelab-file-manager.git file-manager
 cd file-manager
 
 # Windows
@@ -52,7 +52,7 @@ cd backend && go run cmd/app/main.go
 cd frontend && npm run dev
 
 # Docker
-docker-compose up --build
+docker compose up --build
 ```
 
 ## Tech Stack
