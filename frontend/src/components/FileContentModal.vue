@@ -55,8 +55,8 @@
               </button>
             </div>
           </div>
-          <div class="p-6 overflow-auto h-full">
-            <pre class="text-sm text-gray-800 whitespace-pre-wrap font-mono leading-relaxed">{{ content }}</pre>
+          <div class="p-6 overflow-auto h-full max-h-96">
+            <pre class="text-sm text-gray-800 whitespace-pre-wrap font-mono leading-relaxed bg-gray-50 p-4 rounded border">{{ content }}</pre>
           </div>
         </div>
 
@@ -89,6 +89,7 @@
 
 <script>
 import { computed } from 'vue'
+import { useToast } from '../composables/useToast'
 import {
   DocumentIcon,
   XMarkIcon,
@@ -116,13 +117,22 @@ export default {
   },
   emits: ['close'],
   setup(props) {
+    const toast = useToast()
     const isTextFile = computed(() => {
       const textTypes = [
         'text/',
         'application/json',
         'application/xml',
         'application/javascript',
-        'application/typescript'
+        'application/typescript',
+        'text/x-go',
+        'text/x-python',
+        'text/x-java-source',
+        'text/x-c',
+        'text/x-c++',
+        'text/markdown',
+        'application/x-yaml',
+        'application/toml'
       ]
       return textTypes.some(type => props.file.mimeType?.startsWith(type))
     })
@@ -152,10 +162,10 @@ export default {
     const copyToClipboard = async () => {
       try {
         await navigator.clipboard.writeText(props.content)
-        // You could add a toast notification here
-        console.log('Content copied to clipboard')
+        toast.success('Copied to clipboard', 'File content has been copied to clipboard')
       } catch (err) {
         console.error('Failed to copy content:', err)
+        toast.error('Copy failed', 'Failed to copy content to clipboard')
       }
     }
 

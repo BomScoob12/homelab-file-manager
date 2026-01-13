@@ -2,12 +2,16 @@
   <div class="space-y-6">
     <!-- Breadcrumb Navigation -->
     <nav class="flex" aria-label="Breadcrumb">
-      <ol class="flex items-center space-x-2">
+      <ol class="flex items-center space-x-2 flex-wrap">
         <li>
           <button
             @click="navigateToPath('/')"
-            class="text-primary-600 hover:text-primary-700 font-medium"
+            class="text-primary-600 hover:text-primary-700 font-medium flex items-center"
+            :class="{ 'text-primary-800 font-semibold': currentPath === '/' }"
           >
+            <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+            </svg>
             Home
           </button>
         </li>
@@ -18,6 +22,7 @@
           <button
             @click="navigateToPath(getPathUpTo(index))"
             class="text-primary-600 hover:text-primary-700 font-medium"
+            :class="{ 'text-primary-800 font-semibold': getPathUpTo(index) === currentPath }"
           >
             {{ segment }}
           </button>
@@ -31,15 +36,32 @@
         <div class="flex items-center space-x-2">
           <FolderIcon class="w-5 h-5 text-primary-600" />
           <span class="font-medium text-gray-900">{{ currentPath || '/' }}</span>
+          <span v-if="files.length > 0" class="text-sm text-gray-500 ml-2">
+            ({{ files.length }} {{ files.length === 1 ? 'item' : 'items' }})
+          </span>
         </div>
-        <button
-          @click="refreshFiles"
-          :disabled="loading"
-          class="btn btn-secondary"
-        >
-          <ArrowPathIcon class="w-4 h-4 mr-2" :class="{ 'animate-spin': loading }" />
-          Refresh
-        </button>
+        <div class="flex items-center space-x-2">
+          <!-- Back Button -->
+          <button
+            v-if="currentPath !== '/'"
+            @click="navigateToParent"
+            class="btn btn-secondary"
+            title="Go back"
+          >
+            <ArrowLeftIcon class="w-4 h-4 mr-2" />
+            Back
+          </button>
+          <!-- Refresh Button -->
+          <button
+            @click="refreshFiles"
+            :disabled="loading"
+            class="btn btn-secondary"
+            title="Refresh"
+          >
+            <ArrowPathIcon class="w-4 h-4 mr-2" :class="{ 'animate-spin': loading }" />
+            Refresh
+          </button>
+        </div>
       </div>
     </div>
 
@@ -95,13 +117,15 @@
               <div class="flex-1 min-w-0">
                 <button
                   @click="handleFileClick(file)"
-                  class="text-left w-full"
+                  class="text-left w-full group"
                 >
-                  <p class="text-sm font-medium text-gray-900 truncate hover:text-primary-600">
+                  <p class="text-sm font-medium text-gray-900 truncate group-hover:text-primary-600 transition-colors">
                     {{ file.name }}
                   </p>
                   <p class="text-xs text-gray-500">
-                    {{ formatFileSize(file.size) }} • {{ formatDate(file.modTime) }}
+                    <span v-if="!file.isDir">{{ formatFileSize(file.size) }} • </span>
+                    {{ formatDate(file.modTime) }}
+                    <span v-if="file.extension" class="ml-1 text-gray-400">{{ file.extension }}</span>
                   </p>
                 </button>
               </div>
@@ -111,15 +135,23 @@
             <div class="flex items-center space-x-2">
               <button
                 v-if="!file.isDir"
-                @click="openFile(file)"
-                class="p-2 text-gray-400 hover:text-primary-600 rounded-md hover:bg-gray-100"
+                @click.stop="openFile(file)"
+                class="p-2 text-gray-400 hover:text-primary-600 rounded-md hover:bg-gray-100 transition-colors"
                 title="Open file"
               >
                 <EyeIcon class="w-4 h-4" />
               </button>
               <button
-                @click="deleteFile(file)"
-                class="p-2 text-gray-400 hover:text-red-600 rounded-md hover:bg-gray-100"
+                v-if="!file.isDir"
+                @click.stop="downloadFile(file)"
+                class="p-2 text-gray-400 hover:text-green-600 rounded-md hover:bg-gray-100 transition-colors"
+                title="Download file"
+              >
+                <ArrowDownTrayIcon class="w-4 h-4" />
+              </button>
+              <button
+                @click.stop="deleteFile(file)"
+                class="p-2 text-gray-400 hover:text-red-600 rounded-md hover:bg-gray-100 transition-colors"
                 title="Delete"
               >
                 <TrashIcon class="w-4 h-4" />
@@ -152,12 +184,15 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { fileAPI } from '../services/api'
+import { useToast } from '../composables/useToast'
 import {
   FolderIcon,
   DocumentIcon,
   EyeIcon,
   TrashIcon,
   ArrowPathIcon,
+  ArrowLeftIcon,
+  ArrowDownTrayIcon,
   ExclamationTriangleIcon
 } from '@heroicons/vue/24/outline'
 import FileContentModal from './FileContentModal.vue'
@@ -171,6 +206,8 @@ export default {
     EyeIcon,
     TrashIcon,
     ArrowPathIcon,
+    ArrowLeftIcon,
+    ArrowDownTrayIcon,
     ExclamationTriangleIcon,
     FileContentModal,
     DeleteConfirmModal
@@ -178,6 +215,7 @@ export default {
   setup() {
     const route = useRoute()
     const router = useRouter()
+    const toast = useToast()
 
     // Reactive state
     const files = ref([])
@@ -221,6 +259,11 @@ export default {
       router.push(path === '/' ? '/' : `/files${path}`)
     }
 
+    const navigateToParent = () => {
+      const parentPath = currentPath.value.split('/').slice(0, -1).join('/') || '/'
+      navigateToPath(parentPath)
+    }
+
     const getPathUpTo = (index) => {
       const segments = pathSegments.value.slice(0, index + 1)
       return '/' + segments.join('/')
@@ -237,14 +280,39 @@ export default {
     const openFile = async (file) => {
       try {
         loading.value = true
+        error.value = null
         const response = await fileAPI.openFile(file.path)
         selectedFile.value = file
         fileContent.value = response.content || ''
         showFileContent.value = true
       } catch (err) {
         error.value = `Failed to open file: ${err.message}`
+        console.error('Error opening file:', err)
       } finally {
         loading.value = false
+      }
+    }
+
+    const downloadFile = async (file) => {
+      try {
+        // For now, we'll open the file content in a new tab
+        // In a real implementation, you might want to create a download endpoint
+        const response = await fileAPI.openFile(file.path)
+        const blob = new Blob([response.content], { type: file.mimeType || 'text/plain' })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = file.name
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+        
+        toast.success('File downloaded', `${file.name} has been downloaded successfully`)
+      } catch (err) {
+        error.value = `Failed to download file: ${err.message}`
+        toast.error('Download failed', err.message)
+        console.error('Error downloading file:', err)
       }
     }
 
@@ -265,9 +333,11 @@ export default {
         await fileAPI.deleteFile(fileToDelete.value.path)
         await loadFiles(currentPath.value) // Refresh the list
         showDeleteConfirm.value = false
+        toast.success('File deleted', `${fileToDelete.value.name} has been deleted successfully`)
         fileToDelete.value = null
       } catch (err) {
         error.value = `Failed to delete: ${err.message}`
+        toast.error('Delete failed', err.message)
       } finally {
         loading.value = false
       }
@@ -328,9 +398,11 @@ export default {
       loadFiles,
       refreshFiles,
       navigateToPath,
+      navigateToParent,
       getPathUpTo,
       handleFileClick,
       openFile,
+      downloadFile,
       closeFileContent,
       deleteFile,
       confirmDelete,

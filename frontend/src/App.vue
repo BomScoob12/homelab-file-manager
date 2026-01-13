@@ -17,11 +17,38 @@
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <router-view />
     </main>
+
+    <!-- Toast Container -->
+    <div class="fixed top-4 right-4 z-50 space-y-2">
+      <Toast
+        v-for="toast in toasts"
+        :key="toast.id"
+        :type="toast.type"
+        :title="toast.title"
+        :message="toast.message"
+        :duration="0"
+        @close="removeToast(toast.id)"
+      />
+    </div>
   </div>
 </template>
 
 <script>
+import { useToast } from './composables/useToast'
+import Toast from './components/Toast.vue'
+
 export default {
-  name: 'App'
+  name: 'App',
+  components: {
+    Toast
+  },
+  setup() {
+    const { toasts, removeToast } = useToast()
+
+    return {
+      toasts,
+      removeToast
+    }
+  }
 }
 </script>
