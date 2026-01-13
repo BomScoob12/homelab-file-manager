@@ -14,14 +14,6 @@ type FileHandler struct {
 	svc FileServiceInterface
 }
 
-// FileServiceInterface defines the contract for file service operations
-type FileServiceInterface interface {
-	ListFiles(path string) (*FileListResponse, error)
-	GetFileDetails(path string) (*FileDetailsResponse, error)
-	DeleteFile(path string) error
-	OpenFile(path string) (*FileContentResponse, error)
-}
-
 // NewHandler creates a new file handler with proper routing
 func NewHandler() http.Handler {
 	mux := http.NewServeMux()
@@ -34,6 +26,7 @@ func NewHandler() http.Handler {
 	mux.HandleFunc("/open", handler.handleOpenFile)
 	mux.HandleFunc("/details", handler.handleGetFileDetails)
 	mux.HandleFunc("/delete", handler.handleDeleteFile)
+	mux.HandleFunc("/raw", handler.handleRawFile)
 
 	// Add middleware for logging and CORS
 	return handler.withMiddleware(mux)
@@ -183,6 +176,37 @@ func (h *FileHandler) handleDeleteFile(w http.ResponseWriter, r *http.Request) {
 	h.sendJSONResponse(w, response, http.StatusOK)
 }
 
+// handleRawFile handles GET /file/raw - Serves raw file content (for images, PDFs, etc.)
+func (h *FileHandler) handleRawFile(w http.ResponseWriter, r *http.Request) {
+	// Check HTTP method
+	if r.Method != http.MethodGet {
+		h.sendErrorResponse(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Extract and validate file path
+	filePath := r.URL.Query().Get("path")
+	if filePath == "" {
+		h.sendErrorResponse(w, "File path is required", http.StatusBadRequest)
+		return
+	}
+
+	// Clean and validate path
+	cleanPath := filepath.Clean(filePath)
+	if !isValidPath(cleanPath) {
+		h.sendErrorResponse(w, "Invalid file path provided", http.StatusBadRequest)
+		return
+	}
+
+	// Call service layer to serve raw file
+	err := h.svc.ServeRawFile(w, cleanPath)
+	if err != nil {
+		log.Printf("Error serving raw file %s: %v", cleanPath, err)
+		h.handleServiceError(w, err)
+		return
+	}
+}
+
 // Helper methods for the handler
 
 // sendJSONResponse sends a JSON response with proper headers
@@ -217,29 +241,6 @@ func (h *FileHandler) handleServiceError(w http.ResponseWriter, err error) {
 	} else {
 		h.sendErrorResponse(w, "Internal server error", http.StatusInternalServerError)
 	}
-}
-
-// isValidPath validates if the path is safe to use
-func isValidPath(path string) bool {
-	// Check for empty path
-	if path == "" {
-		return true // Empty path is valid (represents root)
-	}
-
-	// Handle root paths
-	if path == "/" || path == "." {
-		return true
-	}
-
-	// Check for dangerous patterns
-	dangerousPatterns := []string{"../", "..", "~"}
-	for _, pattern := range dangerousPatterns {
-		if strings.Contains(path, pattern) {
-			return false
-		}
-	}
-
-	return true
 }
 
 // withMiddleware adds middleware to the handler

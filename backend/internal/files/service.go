@@ -2,6 +2,8 @@ package files
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,52 +31,6 @@ func NewFileService() *FileService {
 		basePath: basePath,
 		fsUtils:  fs.NewFileSystemUtils(),
 	}
-}
-
-// Response models
-type FileItem struct {
-	Name        string    `json:"name"`
-	Path        string    `json:"path"`
-	IsDir       bool      `json:"isDir"`
-	FileType    string    `json:"fileType"`
-	Size        int64     `json:"size"`
-	ModTime     time.Time `json:"modTime"`
-	Permissions string    `json:"permissions"`
-	Extension   string    `json:"extension,omitempty"`
-}
-
-type FileListResponse struct {
-	Success     bool       `json:"success"`
-	Path        string     `json:"path"`
-	Items       []FileItem `json:"items"`
-	TotalItems  int        `json:"totalItems"`
-	TotalSize   int64      `json:"totalSize"`
-	RequestTime time.Time  `json:"requestTime"`
-}
-
-type FileDetailsResponse struct {
-	Success     bool      `json:"success"`
-	Name        string    `json:"name"`
-	Path        string    `json:"path"`
-	FullPath    string    `json:"fullPath"`
-	IsDir       bool      `json:"isDir"`
-	Size        int64     `json:"size"`
-	ModTime     time.Time `json:"modTime"`
-	MimeType    string    `json:"mimeType"`
-	Permissions string    `json:"permissions"`
-	Extension   string    `json:"extension,omitempty"`
-	RequestTime time.Time `json:"requestTime"`
-}
-
-type FileContentResponse struct {
-	Success     bool      `json:"success"`
-	Name        string    `json:"name"`
-	Path        string    `json:"path"`
-	Content     string    `json:"content"`
-	Size        int64     `json:"size"`
-	MimeType    string    `json:"mimeType"`
-	Encoding    string    `json:"encoding"`
-	RequestTime time.Time `json:"requestTime"`
 }
 
 // ListFiles lists all files and directories in the specified path
@@ -107,6 +63,15 @@ func (s *FileService) ListFiles(path string) (*FileListResponse, error) {
 		}
 
 		itemPath := filepath.Join(path, entry.Name())
+		fullItemPath := filepath.Join(fullPath, entry.Name())
+		
+		var mimeType string
+		if entry.IsDir() {
+			mimeType = "inode/directory"
+		} else {
+			mimeType = getMimeType(fullItemPath)
+		}
+		
 		fileItem := FileItem{
 			Name:        entry.Name(),
 			Path:        itemPath,
@@ -116,6 +81,7 @@ func (s *FileService) ListFiles(path string) (*FileListResponse, error) {
 			ModTime:     info.ModTime(),
 			Permissions: info.Mode().String(),
 			Extension:   filepath.Ext(entry.Name()),
+			MimeType:    mimeType,
 		}
 
 		fileItems = append(fileItems, fileItem)
@@ -235,152 +201,50 @@ func (s *FileService) DeleteFile(targetPath string) error {
 	return nil
 }
 
-// Helper methods for the service
-
-// validateAndConstructPath validates the path and constructs the full system path
-func (s *FileService) validateAndConstructPath(path string) (string, error) {
-	// Handle empty path as root
-	if path == "" {
-		return s.basePath, nil
+// ServeRawFile serves raw file content directly (for images, PDFs, etc.)
+func (s *FileService) ServeRawFile(w http.ResponseWriter, filePath string) error {
+	// Validate and construct full path
+	fullPath, err := s.validateAndConstructPath(filePath)
+	if err != nil {
+		return fmt.Errorf("path validation failed: %w", err)
 	}
 
-	// Handle root path
-	if path == "/" {
-		return s.basePath, nil
+	// Check if file exists and is not a directory
+	info, err := s.fsUtils.GetFileInfo(fullPath)
+	if err != nil {
+		return fmt.Errorf("failed to get file info: %w", err)
 	}
 
-	// Clean the path
-	cleanPath := filepath.Clean(path)
-
-	// If cleanPath is ".", it means we're at root
-	if cleanPath == "." {
-		return s.basePath, nil
+	if info.IsDir() {
+		return fmt.Errorf("cannot serve directory as file: %s", filePath)
 	}
 
-	// Construct full path
-	fullPath := filepath.Join(s.basePath, cleanPath)
+	// Open the file
+	file, err := os.Open(fullPath)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer file.Close()
 
-	// Clean both paths for comparison
-	cleanFullPath := filepath.Clean(fullPath)
-	cleanBasePath := filepath.Clean(s.basePath)
+	// Set appropriate headers
+	mimeType := getMimeType(fullPath)
+	w.Header().Set("Content-Type", mimeType)
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", info.Size()))
+	
+	// Set cache headers for better performance
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Header().Set("Last-Modified", info.ModTime().UTC().Format(http.TimeFormat))
 
-	// Ensure the path doesn't escape the base directory
-	if !strings.HasPrefix(cleanFullPath, cleanBasePath) {
-		return "", fmt.Errorf("invalid path: access denied - path escapes base directory")
+	// For downloads, set Content-Disposition header
+	if !isInlineMimeType(mimeType) {
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", info.Name()))
 	}
 
-	return cleanFullPath, nil
-}
-
-// getMimeType returns a MIME type based on file extension
-func getMimeType(filePath string) string {
-	ext := strings.ToLower(filepath.Ext(filePath))
-
-	mimeTypes := map[string]string{
-		// Text files
-		".txt":  "text/plain",
-		".md":   "text/markdown",
-		".csv":  "text/csv",
-		".log":  "text/plain",
-		".conf": "text/plain",
-		".cfg":  "text/plain",
-		".ini":  "text/plain",
-
-		// Code files
-		".go":   "text/x-go",
-		".js":   "application/javascript",
-		".ts":   "application/typescript",
-		".py":   "text/x-python",
-		".java": "text/x-java-source",
-		".c":    "text/x-c",
-		".cpp":  "text/x-c++",
-		".h":    "text/x-c",
-		".php":  "application/x-httpd-php",
-		".rb":   "text/x-ruby",
-		".sh":   "application/x-sh",
-		".bat":  "application/x-bat",
-		".ps1":  "application/x-powershell",
-
-		// Web files
-		".html": "text/html",
-		".htm":  "text/html",
-		".css":  "text/css",
-		".scss": "text/x-scss",
-		".sass": "text/x-sass",
-		".less": "text/x-less",
-
-		// Data files
-		".json": "application/json",
-		".xml":  "application/xml",
-		".yaml": "application/x-yaml",
-		".yml":  "application/x-yaml",
-		".toml": "application/toml",
-
-		// Images
-		".png":  "image/png",
-		".jpg":  "image/jpeg",
-		".jpeg": "image/jpeg",
-		".gif":  "image/gif",
-		".bmp":  "image/bmp",
-		".svg":  "image/svg+xml",
-		".webp": "image/webp",
-		".ico":  "image/x-icon",
-
-		// Documents
-		".pdf":  "application/pdf",
-		".doc":  "application/msword",
-		".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-		".xls":  "application/vnd.ms-excel",
-		".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-		".ppt":  "application/vnd.ms-powerpoint",
-		".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-
-		// Archives
-		".zip": "application/zip",
-		".tar": "application/x-tar",
-		".gz":  "application/gzip",
-		".rar": "application/x-rar-compressed",
-		".7z":  "application/x-7z-compressed",
-
-		// Audio/Video
-		".mp3": "audio/mpeg",
-		".wav": "audio/wav",
-		".mp4": "video/mp4",
-		".avi": "video/x-msvideo",
-		".mov": "video/quicktime",
-
-		// Executables
-		".exe": "application/x-msdownload",
-		".msi": "application/x-msi",
-		".deb": "application/x-debian-package",
-		".rpm": "application/x-rpm",
-		".dmg": "application/x-apple-diskimage",
+	// Copy file content to response
+	_, err = io.Copy(w, file)
+	if err != nil {
+		return fmt.Errorf("failed to serve file content: %w", err)
 	}
 
-	if mimeType, exists := mimeTypes[ext]; exists {
-		return mimeType
-	}
-
-	return "application/octet-stream"
-}
-
-// isBinaryMimeType checks if a MIME type represents binary content
-func isBinaryMimeType(mimeType string) bool {
-	textTypes := []string{
-		"text/",
-		"application/json",
-		"application/xml",
-		"application/javascript",
-		"application/typescript",
-		"application/x-yaml",
-		"application/toml",
-	}
-
-	for _, textType := range textTypes {
-		if strings.HasPrefix(mimeType, textType) {
-			return false
-		}
-	}
-
-	return true
+	return nil
 }
