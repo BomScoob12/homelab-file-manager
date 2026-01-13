@@ -1,60 +1,124 @@
 @echo off
 setlocal enabledelayedexpansion
 
-echo 🚀 Starting File Manager with Docker
-echo ====================================
+title File Manager - Development Environment
 
-REM Check if Docker is installed
-where docker >nul 2>nul
-if %errorlevel% neq 0 (
-    echo ❌ Docker is not installed. Please install Docker first.
-    pause
-    exit /b 1
-)
+echo.
+echo 🚀 File Manager Development Environment
+echo =======================================
+echo.
 
-REM Check if Docker Compose is installed
-where docker-compose >nul 2>nul
-if %errorlevel% neq 0 (
-    echo ❌ Docker Compose is not installed. Please install Docker Compose first.
-    pause
-    exit /b 1
-)
+REM Function to check if command exists
+call :check_command docker "Docker"
+call :check_command docker-compose "Docker Compose"
 
-echo ✅ Docker and Docker Compose are installed
+echo ✅ All dependencies are installed
+echo.
 
-REM Create data directory if it doesn't exist
-if not exist "data" (
-    echo 📁 Creating data directory...
-    mkdir data
-    mkdir data\documents
-    mkdir data\images
-    
-    echo Sample text file content > data\sample.txt
-    echo # Sample Markdown File > data\README.md
-    echo This is a **markdown** file with some content. >> data\README.md
-    echo {"name": "sample", "version": "1.0", "description": "Sample JSON file"} > data\config.json
-    echo Sample log entry > data\app.log
-    echo Document content > data\documents\document.txt
-    
-    echo package main > data\main.go
-    echo. >> data\main.go
-    echo import "fmt" >> data\main.go
-    echo. >> data\main.go
-    echo func main() { >> data\main.go
-    echo     fmt.Println("Hello, World!") >> data\main.go
-    echo } >> data\main.go
-    
-    echo ✅ Sample data created in ./data
-)
+REM Setup data directory with sample files
+call :setup_data
 
-echo 🔧 Starting File Manager services...
+echo 🔧 Building and starting services...
+echo    This may take a few minutes on first run...
+echo.
+
+REM Start Docker Compose with better error handling
 docker-compose up --build
+set compose_exit=%errorlevel%
 
 echo.
-echo File Manager is running!
-echo 📱 Frontend: http://localhost:3000
-echo 🔧 Backend API: http://localhost:8080
-echo 📁 Data directory: ./data
+if %compose_exit% equ 0 (
+    echo ✅ Services stopped successfully
+) else (
+    echo ❌ Services stopped with errors (exit code: %compose_exit%)
+)
+
 echo.
-echo Press Ctrl+C to stop the services.
+echo 👋 Thanks for using File Manager!
 pause
+exit /b %compose_exit%
+
+REM ============================================================================
+REM Functions
+REM ============================================================================
+
+:check_command
+where %1 >nul 2>nul
+if %errorlevel% neq 0 (
+    echo ❌ %2 is not installed or not in PATH
+    echo    Please install %2 and try again
+    echo    Visit: https://docs.docker.com/get-docker/
+    echo.
+    pause
+    exit /b 1
+)
+goto :eof
+
+:setup_data
+if exist "data" (
+    echo 📁 Data directory already exists
+    goto :eof
+)
+
+echo 📁 Creating data directory with sample files...
+
+REM Create directory structure
+mkdir data 2>nul
+mkdir data\documents 2>nul
+mkdir data\images 2>nul
+mkdir data\logs 2>nul
+
+REM Create sample files
+(
+echo Sample text file for testing the file manager.
+echo You can edit, delete, or create new files through the web interface.
+) > data\sample.txt
+
+(
+echo # File Manager Sample
+echo.
+echo This is a **markdown** file with some content.
+echo.
+echo ## Features
+echo - Browse files and directories
+echo - View file contents
+echo - Delete files
+echo - Responsive web interface
+echo.
+echo ## Usage
+echo Navigate to http://localhost:3000 to start using the file manager.
+) > data\README.md
+
+(
+echo {
+echo   "name": "file-manager-config",
+echo   "version": "1.0.0",
+echo   "description": "Sample configuration file",
+echo   "settings": {
+echo     "theme": "dark",
+echo     "autoSave": true,
+echo     "maxFileSize": "10MB"
+echo   }
+echo }
+) > data\config.json
+
+echo [%date% %time%] File Manager started > data\logs\app.log
+echo [%date% %time%] Sample data created >> data\logs\app.log
+
+echo Document content for testing > data\documents\document.txt
+echo Meeting notes from today's standup > data\documents\notes.txt
+
+(
+echo package main
+echo.
+echo import "fmt"
+echo.
+echo func main^(^) {
+echo 	fmt.Println^("Hello, File Manager!"^)
+echo 	fmt.Println^("This is a sample Go file"^)
+echo }
+) > data\main.go
+
+echo ✅ Sample data created in .\data
+echo.
+goto :eof
