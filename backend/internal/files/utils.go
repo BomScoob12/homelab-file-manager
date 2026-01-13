@@ -2,7 +2,6 @@ package files
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 )

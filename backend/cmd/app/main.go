@@ -32,7 +32,7 @@ func main() {
 	// Get base path for logging
 	basePath := os.Getenv("FILE_MANAGER_BASE_PATH")
 	if basePath == "" {
-		basePath = "default system path"
+		basePath = "localhost"
 	}
 
 	server := &http.Server{
