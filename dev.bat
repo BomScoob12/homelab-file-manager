@@ -108,6 +108,14 @@ echo [%date% %time%] Sample data created >> data\logs\app.log
 echo Document content for testing > data\documents\document.txt
 echo Meeting notes from today's standup > data\documents\notes.txt
 
+REM Create a simple SVG image for testing
+(
+echo ^<svg width="200" height="100" xmlns="http://www.w3.org/2000/svg"^>
+echo   ^<rect width="200" height="100" fill="lightblue"/^>
+echo   ^<text x="100" y="50" text-anchor="middle" dy=".3em" font-family="Arial" font-size="16"^>Sample Image^</text^>
+echo ^</svg^>
+) > data\images\sample.svg
+
 (
 echo package main
 echo.
