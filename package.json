@@ -1,0 +1,28 @@
+{
+  "name": "file-manager",
+  "version": "1.0.0",
+  "description": "Full-stack file management system with Go backend and Vue.js frontend",
+  "scripts": {
+    "dev": "node -e \"console.log('Use dev.bat on Windows or dev.sh on Unix systems')\"",
+    "install:frontend": "cd frontend && npm install",
+    "install:backend": "cd backend && go mod download",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && make build",
+    "test:frontend": "cd frontend && npm test",
+    "test:backend": "cd backend && make test",
+    "start:frontend": "cd frontend && npm run dev",
+    "start:backend": "cd backend && make run"
+  },
+  "keywords": [
+    "file-manager",
+    "go",
+    "vue",
+    "fullstack",
+    "web-application"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

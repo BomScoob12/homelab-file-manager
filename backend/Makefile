@@ -75,12 +75,25 @@ test-client:
 
 # Create test directory and files
 setup-test:
+ifeq ($(OS),Windows_NT)
+	@if not exist "C:\tmp\WorkDir" mkdir "C:\tmp\WorkDir"
+	@if not exist "C:\tmp\WorkDir\subdir" mkdir "C:\tmp\WorkDir\subdir"
+	@echo Test file content > "C:\tmp\WorkDir\test.txt"
+	@echo Another test file > "C:\tmp\WorkDir\readme.md"
+	@echo Subdirectory file > "C:\tmp\WorkDir\subdir\file.txt"
+	@echo { "name": "test", "version": "1.0" } > "C:\tmp\WorkDir\config.json"
+	@echo This is a log file > "C:\tmp\WorkDir\app.log"
+	@echo Test environment created at C:\tmp\WorkDir
+else
 	@mkdir -p /tmp/WorkDir
+	@mkdir -p /tmp/WorkDir/subdir
 	@echo "Test file content" > /tmp/WorkDir/test.txt
 	@echo "Another test file" > /tmp/WorkDir/readme.md
-	@mkdir -p /tmp/WorkDir/subdir
 	@echo "Subdirectory file" > /tmp/WorkDir/subdir/file.txt
+	@echo '{ "name": "test", "version": "1.0" }' > /tmp/WorkDir/config.json
+	@echo "This is a log file" > /tmp/WorkDir/app.log
 	@echo "Test environment created at /tmp/WorkDir"
+endif
 
 # Build Docker image
 docker-build:
