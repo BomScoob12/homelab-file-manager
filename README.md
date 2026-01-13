@@ -1,6 +1,6 @@
 # File Manager
 
-A simple web-based file manager built with Go backend and Vue.js frontend.
+A simple web-based local file manager built with Go backend and Vue.js frontend.
 
 ## Features
 
@@ -60,3 +60,5 @@ docker compose up --build
 - **Backend**: Go, net/http
 - **Frontend**: Vue 3, Tailwind CSS, Vite
 - **Deployment**: Docker, Docker Compose
+
+| vibe code with Kiro
