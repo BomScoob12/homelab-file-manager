@@ -2,7 +2,6 @@ package routes
 
 import (
 	"net/http"
-	"path/filepath"
 
 	"github.com/BomScoob12/homelab-file-manager/internal/files"
 )

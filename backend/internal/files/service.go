@@ -2,7 +2,6 @@ package files
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -18,8 +17,15 @@ type FileService struct {
 
 // NewFileService creates a new file service instance
 func NewFileService() *FileService {
+	basePath := "/WorkDir" // Default for Docker/Unix
+	
+	// For Windows development, use C:\tmp\WorkDir
+	if filepath.Separator == '\\' {
+		basePath = `C:\tmp\WorkDir`
+	}
+	
 	return &FileService{
-		basePath: "/WorkDir", // Docker mount point
+		basePath: basePath,
 		fsUtils:  fs.NewFileSystemUtils(),
 	}
 }
@@ -228,32 +234,6 @@ func (s *FileService) DeleteFile(targetPath string) error {
 	return nil
 }
 
-// getMimeType returns a basic MIME type based on file extension
-func getMimeType(filePath string) string {
-	ext := filepath.Ext(filePath)
-	switch ext {
-	case ".txt", ".md":
-		return "text/plain"
-	case ".json":
-		return "application/json"
-	case ".html":
-		return "text/html"
-	case ".css":
-		return "text/css"
-	case ".js":
-		return "application/javascript"
-	case ".png":
-		return "image/png"
-	case ".jpg", ".jpeg":
-		return "image/jpeg"
-	case ".gif":
-		return "image/gif"
-	case ".pdf":
-		return "application/pdf"
-	default:
-		return "application/octet-stream"
-	}
-}
 // Helper methods for the service
 
 // validateAndConstructPath validates the path and constructs the full system path

@@ -1,6 +1,7 @@
 {
   "name": "file-manager-frontend",
   "version": "1.0.0",
+  "type": "module",
   "description": "Vue.js frontend for file management system",
   "scripts": {
     "dev": "vite",
